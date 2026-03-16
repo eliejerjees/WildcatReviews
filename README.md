@@ -1,4 +1,4 @@
-# Davidson RMP
+# WildCatReviews
 
 Chrome extension that displays **RateMyProfessor ratings directly on the Davidson College course schedule**.
 
@@ -38,4 +38,4 @@ Clicking a professor’s name opens their full RateMyProfessor profile.
 1. Clone or download the repository
 
 ```bash
-git clone https://github.com/yourusername/davidson-rmp
+git clone https://github.com/yourusername/WildcatReviews
