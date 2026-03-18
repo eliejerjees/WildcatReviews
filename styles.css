@@ -67,14 +67,14 @@
 
 /* ── Modal ── */
 #davidson-rmp-modal {
-  width: min(760px, calc(100vw - 32px));
-  max-height: min(82vh, 820px);
+  width: min(800px, calc(100vw - 32px));
+  max-height: min(82vh, 860px);
   overflow: auto;
   background: #18181b;
   color: #fff;
-  border-radius: 20px;
+  border-radius: 10px;
   border: 1px solid rgba(255,255,255,0.08);
-  padding: 28px;
+  padding: 32px;
   box-shadow: 0 40px 100px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.04);
   font-family: Inter, system-ui, sans-serif;
   position: relative;
@@ -85,13 +85,13 @@
   position: absolute;
   top: 14px;
   right: 14px;
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  border: 0;
-  background: rgba(255,255,255,0.08);
+  width: 30px;
+  height: 30px;
+  border-radius: 6px;
+  border: 1px solid rgba(255,255,255,0.1);
+  background: rgba(255,255,255,0.06);
   color: #aaa;
-  font-size: 20px;
+  font-size: 18px;
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -100,17 +100,17 @@
 }
 
 .davidson-rmp-close:hover {
-  background: rgba(255,255,255,0.14);
+  background: rgba(255,255,255,0.12);
   color: #fff;
 }
 
 /* ── Header ── */
 .davidson-rmp-header h2 {
   margin: 0 0 6px;
-  font-size: 26px;
-  font-weight: 700;
-  line-height: 1.15;
-  letter-spacing: -0.02em;
+  font-size: 32px;
+  font-weight: 800;
+  line-height: 1.1;
+  letter-spacing: -0.03em;
 }
 
 .davidson-rmp-header p,
@@ -131,68 +131,73 @@
 /* ── Summary grid ── */
 .davidson-rmp-summary {
   display: grid;
-  grid-template-columns: 140px 1fr;
-  gap: 14px;
-  margin-top: 20px;
+  grid-template-columns: 160px 1fr;
+  gap: 12px;
+  margin-top: 24px;
   align-items: stretch;
 }
 
 /* ── Score box ── */
 .davidson-rmp-score {
-  border-radius: 14px;
+  border-radius: 8px;
   border: 1px solid rgba(255,255,255,0.07);
   background: #222226;
   display: flex;
   flex-direction: column;
   justify-content: center;
   align-items: center;
-  min-height: 130px;
+  min-height: 150px;
 }
 
 .davidson-rmp-score-main {
-  font-size: 54px;
+  font-size: 72px;
   line-height: 1;
   font-weight: 800;
-  letter-spacing: -0.03em;
+  letter-spacing: -0.04em;
 }
 
 .davidson-rmp-score-sub {
-  font-size: 13px;
-  color: #666;
-  margin-top: 5px;
+  font-size: 11px;
+  color: #555;
+  margin-top: 7px;
   text-transform: uppercase;
-  letter-spacing: 0.07em;
+  letter-spacing: 0.1em;
   font-weight: 600;
 }
 
 /* ── Metric cards ── */
 .davidson-rmp-metrics {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  align-content: stretch;
 }
 
 .davidson-rmp-metrics div {
   background: #222226;
   border: 1px solid rgba(255,255,255,0.07);
-  border-radius: 14px;
-  padding: 14px;
+  border-radius: 8px;
+  padding: 16px 12px;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
 }
 
 .davidson-rmp-metrics span {
   display: block;
-  font-size: 11px;
-  color: #666;
-  margin-bottom: 6px;
+  font-size: 10px;
+  color: #555;
+  margin-bottom: 8px;
   text-transform: uppercase;
-  letter-spacing: 0.07em;
+  letter-spacing: 0.08em;
   font-weight: 600;
 }
 
 .davidson-rmp-metrics strong {
-  font-size: 22px;
-  font-weight: 700;
-  letter-spacing: -0.02em;
+  font-size: 26px;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  line-height: 1;
 }
 
 /* ── Tags ── */
@@ -206,11 +211,13 @@
 .davidson-rmp-tag {
   background: rgba(255,255,255,0.06);
   border: 1px solid rgba(255,255,255,0.1);
-  border-radius: 999px;
-  padding: 5px 11px;
-  font-size: 12px;
+  border-radius: 4px;
+  padding: 4px 10px;
+  font-size: 11px;
   color: #bbb;
-  font-weight: 500;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
 }
 
 /* ── Reviews ── */
@@ -230,9 +237,9 @@
 .davidson-rmp-review {
   background: #222226;
   border: 1px solid rgba(255,255,255,0.07);
-  border-radius: 14px;
-  padding: 16px;
-  margin-bottom: 10px;
+  border-radius: 8px;
+  padding: 20px;
+  margin-bottom: 8px;
 }
 
 .davidson-rmp-review-meta {
@@ -267,6 +274,6 @@
   }
 
   .davidson-rmp-metrics {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(2, 1fr);
   }
 }
