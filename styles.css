@@ -131,9 +131,9 @@
 /* ── Summary grid ── */
 .davidson-rmp-summary {
   display: grid;
-  grid-template-columns: 160px 1fr;
-  gap: 12px;
-  margin-top: 24px;
+  grid-template-columns: 120px 1fr;
+  gap: 16px;
+  margin-top: 22px;
   align-items: stretch;
 }
 
@@ -146,11 +146,10 @@
   flex-direction: column;
   justify-content: center;
   align-items: center;
-  min-height: 150px;
 }
 
 .davidson-rmp-score-main {
-  font-size: 72px;
+  font-size: 58px;
   line-height: 1;
   font-weight: 800;
   letter-spacing: -0.04em;
@@ -159,52 +158,52 @@
 .davidson-rmp-score-sub {
   font-size: 11px;
   color: #555;
-  margin-top: 7px;
+  margin-top: 6px;
   text-transform: uppercase;
   letter-spacing: 0.1em;
   font-weight: 600;
 }
 
-/* ── Metric cards ── */
+/* ── Metrics: vertical key-value list ── */
 .davidson-rmp-metrics {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 8px;
-  align-content: stretch;
-}
-
-.davidson-rmp-metrics div {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
   background: #222226;
   border: 1px solid rgba(255,255,255,0.07);
   border-radius: 8px;
-  padding: 16px 12px;
-  display: flex;
-  flex-direction: column;
-  justify-content: flex-end;
-  overflow: hidden;
-  min-width: 0;
+  padding: 4px 16px;
+}
+
+.davidson-rmp-metrics div {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+  background: none;
+  border-radius: 0;
+}
+
+.davidson-rmp-metrics div:last-child {
+  border-bottom: none;
 }
 
 .davidson-rmp-metrics span {
-  display: block;
   font-size: 10px;
   color: #555;
-  margin-bottom: 8px;
   text-transform: uppercase;
   letter-spacing: 0.08em;
   font-weight: 600;
   white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 
 .davidson-rmp-metrics strong {
-  font-size: clamp(16px, 2.2vw, 26px);
-  font-weight: 800;
-  letter-spacing: -0.02em;
-  line-height: 1.1;
-  overflow-wrap: break-word;
-  word-break: break-word;
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  text-align: right;
 }
 
 /* ── Tags ── */
