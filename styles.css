@@ -181,6 +181,8 @@
   display: flex;
   flex-direction: column;
   justify-content: flex-end;
+  overflow: hidden;
+  min-width: 0;
 }
 
 .davidson-rmp-metrics span {
@@ -191,13 +193,18 @@
   text-transform: uppercase;
   letter-spacing: 0.08em;
   font-weight: 600;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .davidson-rmp-metrics strong {
-  font-size: 26px;
+  font-size: clamp(16px, 2.2vw, 26px);
   font-weight: 800;
-  letter-spacing: -0.03em;
-  line-height: 1;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+  overflow-wrap: break-word;
+  word-break: break-word;
 }
 
 /* ── Tags ── */
