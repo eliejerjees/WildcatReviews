@@ -1,6 +1,7 @@
 const CACHE_DURATION_MS = 3 * 24 * 60 * 60 * 1000;
 const CACHE_PREFIX = 'davidson_rmp_v1_';
 const SCHOOL_ID = 'U2Nob29sLTM5NjU='; // Davidson College
+const DAVIDSON_API = 'https://api.davidson.edu/api/public/v2';
 
 const REPLACEMENTS = {
   'B.J. Shaw': 'B J Shaw',
@@ -14,6 +15,9 @@ const NAME_OVERRIDES = {
   'Staff S': 'Stephen Staff'
 };
 
+// Instructors fetched from Davidson API for the current term
+let knownInstructors = []; // [{firstName, lastName}]
+
 function normalizeWhitespace(value) {
   return (value || '').replace(/\s+/g, ' ').trim();
 }
@@ -24,9 +28,9 @@ function normalizeName(value) {
     .replace(/^(prof\.?|professor)\s+/i, '')
     .replace(/,\s*(ph\.?d\.?|md|mfa|ma|ms|mba|jd)\b/gi, '')
     .replace(/\b(ph\.?d\.?|md|mfa|ma|ms|mba|jd)\b/gi, '')
-    .replace(/[.'’]/g, '')
+    .replace(/[.'']/g, '')
     .replace(/-/g, ' ')
-    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .normalize('NFD').replace(/[̀-ͯ]/g, '')
     .replace(/\s+/g, ' ')
     .trim();
 }
@@ -370,12 +374,79 @@ async function fetchProfessorFromRMP(rawName) {
   return result;
 }
 
+// --- Davidson API ---
+
+async function fetchActiveTermCode() {
+  const res = await fetch(`${DAVIDSON_API}/terms?limit=500`);
+  if (!res.ok) throw new Error(`Terms fetch failed (${res.status})`);
+  const terms = await res.json();
+
+  const active = terms.find(t => t.is_active);
+  if (active) return active.term_code;
+
+  // Fallback: find the term whose date range contains today
+  const now = Date.now();
+  const current = terms.find(t => t.start_date <= now && t.end_date >= now);
+  return current ? current.term_code : null;
+}
+
+async function fetchInstructorsForTerm(termCode) {
+  const res = await fetch(`${DAVIDSON_API}/courses?term_code=${termCode}&limit=2000`);
+  if (!res.ok) throw new Error(`Courses fetch failed (${res.status})`);
+  const courses = await res.json();
+
+  const seen = new Set();
+  const instructors = [];
+  for (const course of courses) {
+    for (const inst of (course.instructors || [])) {
+      if (!inst.first_name || !inst.last_name) continue;
+      const key = `${inst.first_name}|${inst.last_name}`;
+      if (!seen.has(key)) {
+        seen.add(key);
+        instructors.push({ firstName: inst.first_name, lastName: inst.last_name });
+      }
+    }
+  }
+  return instructors;
+}
+
+async function initializeFromDavidsonApi() {
+  try {
+    const termCode = await fetchActiveTermCode();
+    if (!termCode) return;
+
+    knownInstructors = await fetchInstructorsForTerm(termCode);
+
+    // Pre-warm RMP cache for every instructor in the current term.
+    // Throttled to avoid hammering RMP — fires and forgets each lookup.
+    for (const inst of knownInstructors) {
+      const name = `${inst.firstName} ${inst.lastName}`;
+      fetchProfessorFromRMP(name).catch(() => {});
+      await new Promise(r => setTimeout(r, 150));
+    }
+  } catch (e) {
+    console.warn('Davidson API init failed:', e.message);
+  }
+}
+
+// --- Message handlers ---
+
 chrome.runtime.onMessage.addListener((request, _sender, sendResponse) => {
-  if (request?.type !== 'LOOKUP_PROFESSOR' || !request.professorName) return;
+  if (!request?.type) return;
 
-  fetchProfessorFromRMP(request.professorName)
-    .then(data => sendResponse({ success: true, data }))
-    .catch(error => sendResponse({ success: false, error: error.message }));
+  if (request.type === 'LOOKUP_PROFESSOR') {
+    if (!request.professorName) return;
+    fetchProfessorFromRMP(request.professorName)
+      .then(data => sendResponse({ success: true, data }))
+      .catch(error => sendResponse({ success: false, error: error.message }));
+    return true;
+  }
 
-  return true;
+  if (request.type === 'GET_INSTRUCTOR_LIST') {
+    sendResponse({ success: true, instructors: knownInstructors });
+    return false;
+  }
 });
+
+// Kick off API initialization when the service worker starts
+initializeFromDavidsonApi();

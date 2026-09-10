@@ -1,17 +1,37 @@
 const ROOT_CLASS = 'davidson-rmp-root';
 const CELL_PROCESSED_ATTR = 'data-davidson-rmp-processed';
 const LOOKUP_CACHE = new Map();
+
 let modalEl = null;
 let backdropEl = null;
 let statusEl = null;
 let tableObserverStarted = false;
 
+// Instructor list from Davidson API — used to resolve partial names (e.g. "Green H" → "Hilary Green")
+let knownInstructors = [];
+
+// Per-cell processing token: incremented each time we start processing a cell,
+// so that stale in-flight buildInstructorLinks calls can detect they've been superseded.
+let processingToken = 0;
+
+// Tracks original cell text at the time each cell was last dispatched for processing.
+// Keyed by the DOM element itself so we can detect React node reuse.
+const cellOriginalText = new WeakMap();
+
 function boot() {
   ensureStatus();
   updateStatus('RMP scanning');
   ensureModal();
+  loadInstructorList();
   runScan();
   startObservers();
+}
+
+function loadInstructorList() {
+  chrome.runtime.sendMessage({ type: 'GET_INSTRUCTOR_LIST' }, response => {
+    if (chrome.runtime.lastError || !response?.success) return;
+    knownInstructors = response.instructors || [];
+  });
 }
 
 function ensureStatus() {
@@ -84,7 +104,6 @@ function formatDate(value) {
   return date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
 }
 
-
 function getNormalizedText(value) {
   return (value || '').replace(/\s+/g, ' ').trim();
 }
@@ -130,7 +149,7 @@ function getInstructorCells() {
         if (!text) return;
         if (/\bnotes?\b/i.test(text)) return;
 
-        const looksLikeProfessorCell = /[A-Za-z][A-Za-z'’.-]+\s+[A-Z]\b/.test(text) && !/[0-9]/.test(text);
+        const looksLikeProfessorCell = /[A-Za-z][A-Za-z''.-]+\s+[A-Z]\b/.test(text) && !/[0-9]/.test(text);
         if (!looksLikeProfessorCell && !overlapsHeader) return;
 
         const distance = Math.abs(centerX - rectCenterX(headerRect));
@@ -160,19 +179,50 @@ function normalizeDisplayName(name) {
   return text;
 }
 
+// Try to resolve a name fragment (e.g. "Green H") to a canonical full name from the API
+// (e.g. "Hilary Green"). Falls back to null if no match or the API list isn't loaded yet.
+function resolveToCanonicalName(fragment) {
+  if (!knownInstructors.length) return null;
+
+  const norm = fragment.toLowerCase()
+    .replace(/[.,]/g, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+
+  for (const inst of knownInstructors) {
+    const first = inst.firstName.toLowerCase();
+    const last = inst.lastName.toLowerCase();
+    const initial = first[0] || '';
+
+    if (
+      norm === `${initial} ${last}` ||
+      norm === `${last} ${initial}` ||
+      norm === `${first} ${last}` ||
+      norm === `${last} ${first}` ||
+      norm === `${last}, ${first}` ||
+      norm === `${last}, ${initial}`
+    ) {
+      return `${inst.firstName} ${inst.lastName}`;
+    }
+  }
+
+  return null;
+}
+
 function extractProfessorNamesFromCell(cell) {
-  const raw = (cell.innerText || cell.textContent || '').replace(/\u2022/g, ' ');
+  const raw = (cell.innerText || cell.textContent || '').replace(/•/g, ' ');
   if (!raw) return [];
 
   const names = [];
-  const regex = /([A-Za-z'’.-]+(?:\s+[A-Za-z'’.-]+)*)\s+([A-Z])\b/g;
+  const regex = /([A-Za-z''.-]+(?:\s+[A-Za-z''.-]+)*)\s+([A-Z])\b/g;
   let match;
   while ((match = regex.exec(raw)) !== null) {
     const candidate = normalizeDisplayName(`${match[1]} ${match[2]}`);
     if (!candidate) continue;
     if (/\bnotes?\b/i.test(candidate)) continue;
     if (/\b(?:tba|staff)\b/i.test(candidate)) continue;
-    names.push(candidate);
+    const canonical = resolveToCanonicalName(candidate);
+    names.push(canonical || candidate);
   }
 
   return Array.from(new Set(names));
@@ -288,10 +338,17 @@ async function createProfessorLink(name) {
   return linkEl;
 }
 
-async function buildInstructorLinks(cell, names) {
+// Builds and injects professor links into a cell.
+// token: must still match the cell's CELL_PROCESSED_ATTR when we're ready to write,
+//        otherwise a newer runScan has taken over and we abort.
+// originalText: the cell's raw text when we started — if it changed, the cell content
+//               was updated (e.g. React navigation) and we should not inject stale data.
+async function buildInstructorLinks(cell, names, token, originalText) {
   const container = document.createElement('div');
   container.className = 'davidson-rmp-name-list';
+
   for (let i = 0; i < names.length; i += 1) {
+    if (cell.getAttribute(CELL_PROCESSED_ATTR) !== token) return;
     const link = await createProfessorLink(names[i]);
     container.appendChild(link);
     if (i < names.length - 1) {
@@ -301,6 +358,14 @@ async function buildInstructorLinks(cell, names) {
       container.appendChild(sep);
     }
   }
+
+  // Final guards before touching the DOM:
+  // 1. Token must still be ours (no newer runScan started on this cell).
+  // 2. Cell text must not have changed (React may have replaced cell content mid-flight).
+  if (cell.getAttribute(CELL_PROCESSED_ATTR) !== token) return;
+  const currentText = getNormalizedText(cell.innerText || cell.textContent || '');
+  if (currentText !== originalText) return;
+
   cell.textContent = '';
   cell.appendChild(container);
 }
@@ -308,15 +373,34 @@ async function buildInstructorLinks(cell, names) {
 async function runScan() {
   const cells = getInstructorCells();
   let matched = 0;
+
   for (const cell of cells) {
-    if (cell.getAttribute(CELL_PROCESSED_ATTR) === 'true') continue;
+    // If we've already injected links into this cell, skip it.
+    // (If React later replaces the cell's content, our div is removed and this check fails,
+    // which lets us reprocess the cell with the new content.)
+    if (cell.querySelector('.davidson-rmp-name-list')) continue;
+
+    const rawText = getNormalizedText(cell.innerText || cell.textContent || '');
+
+    // If the cell is marked as in-progress, check whether the content has changed.
+    // Same text → still processing, skip. Different text → React updated the node, reprocess.
+    if (cell.getAttribute(CELL_PROCESSED_ATTR) !== null) {
+      const storedText = cellOriginalText.get(cell);
+      if (storedText === rawText) continue;
+    }
+
     const names = extractProfessorNamesFromCell(cell);
     if (!names.length) continue;
-    cell.setAttribute(CELL_PROCESSED_ATTR, 'true');
+
+    const token = String(++processingToken);
+    cellOriginalText.set(cell, rawText);
+    cell.setAttribute(CELL_PROCESSED_ATTR, token);
     cell.classList.add(ROOT_CLASS);
-    await buildInstructorLinks(cell, names);
+
+    await buildInstructorLinks(cell, names, token, rawText);
     matched += names.length;
   }
+
   updateStatus(matched ? `RMP linked ${matched}` : 'RMP active');
 }
 
